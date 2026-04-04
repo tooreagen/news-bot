@@ -13,7 +13,7 @@ export async function rewriteNews({ articleText, sourceUrl }) {
 
   const text = response.text?.trim();
   if (!text) {
-    throw new Error("Gemini returned an empty rewrite.");
+    throw new Error("Gemini повернув порожній результат перезапису.");
   }
 
   return text;

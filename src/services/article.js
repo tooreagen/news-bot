@@ -17,7 +17,7 @@ export async function loadArticleFromUrl(url) {
   });
 
   if (!response.ok) {
-    throw new Error(`Failed to fetch article: ${response.status} ${response.statusText}`);
+    throw new Error(`Не вдалося завантажити статтю: ${response.status} ${response.statusText}`);
   }
 
   const html = await response.text();
@@ -26,7 +26,7 @@ export async function loadArticleFromUrl(url) {
   const article = reader.parse();
 
   if (!article?.textContent) {
-    throw new Error("Could not extract article text from the page.");
+    throw new Error("Не вдалося видобути текст статті з сторінки.");
   }
 
   return {

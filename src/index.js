@@ -43,7 +43,7 @@ bot.use(async (ctx, next) => {
   const userId = ctx.from?.id;
   if (!userId || !adminIds.has(userId)) {
     if (ctx.chat?.type === "private") {
-      await ctx.reply("Доступ только для администраторов.");
+      await ctx.reply("Доступ лише для адміністраторів.");
     }
     return;
   }
@@ -54,20 +54,20 @@ bot.use(async (ctx, next) => {
 bot.command("start", async (ctx) => {
   await ctx.reply(
     [
-      "Пришлите текст новости или ссылку на статью.",
-      "Если пришлете ссылку, я попробую вытащить текст сам, сделать рерайт и показать предпросмотр.",
-      "После этого можно опубликовать пост в канал."
-    ].join("\n")
+      "Надішліть текст новини або посилання на статтю.",
+      "Якщо надішлете посилання, я спробую витягнути текст самостійно, переписати його та показати попередній перегляд.",
+      "Після цього можна опублікувати допис у каналі.",
+    ].join("\n"),
   );
 });
 
 bot.command("help", async (ctx) => {
   await ctx.reply(
     [
-      "Сценарий работы:",
-      "1. Отправьте текст новости или ссылку.",
-      "2. Получите рерайт.",
-      "3. Нажмите «Опубликовать», «Повторить» или «Отмена»."
+      "Сценарій роботи:",
+      "1. Надішліть текст новини або посилання.",
+      "2. Отримайте рерайт.",
+      "3. Натисніть «Опублікувати», «Повторити» або «Відмінити»."
     ].join("\n")
   );
 });
@@ -75,11 +75,11 @@ bot.command("help", async (ctx) => {
 bot.on("message:text", async (ctx) => {
   const input = ctx.message.text.trim();
   if (!input) {
-    await ctx.reply("Нужен текст новости или ссылка.");
+    await ctx.reply("Потрібен текст новини або посилання.");
     return;
   }
 
-  await ctx.reply("Обрабатываю материал...");
+  await ctx.reply("Обробляю матеріал...");
 
   try {
     const source = await resolveSource(input);
@@ -98,31 +98,31 @@ bot.on("message:text", async (ctx) => {
       reply_markup: draftKeyboard()
     });
   } catch (error) {
-    await ctx.reply(`Не удалось обработать материал.\n${error.message}`);
+    await ctx.reply(`Не вдалося обробити матеріал.\n${error.message}`);
   }
 });
 
 bot.callbackQuery("publish", async (ctx) => {
   const draft = ctx.session.pendingDraft;
   if (!draft) {
-    await ctx.answerCallbackQuery({ text: "Черновик не найден." });
+    await ctx.answerCallbackQuery({ text: "Чернетку не знайдено." });
     return;
   }
 
   await bot.api.sendMessage(targetChannelId, draft.rewrittenText);
   ctx.session.pendingDraft = null;
-  await ctx.answerCallbackQuery({ text: "Опубликовано." });
+  await ctx.answerCallbackQuery({ text: "Опубліковано." });
   await ctx.editMessageReplyMarkup();
 });
 
 bot.callbackQuery("retry", async (ctx) => {
   const draft = ctx.session.pendingDraft;
   if (!draft) {
-    await ctx.answerCallbackQuery({ text: "Черновик не найден." });
+    await ctx.answerCallbackQuery({ text: "Чернетку не знайдено." });
     return;
   }
 
-  await ctx.answerCallbackQuery({ text: "Делаю новый вариант..." });
+  await ctx.answerCallbackQuery({ text: "Створюю новий варіант..." });
 
   try {
     const rewritten = await rewriteNews({
@@ -148,13 +148,13 @@ bot.callbackQuery("retry", async (ctx) => {
       }
     );
   } catch (error) {
-    await ctx.reply(`Не удалось сделать новый рерайт.\n${error.message}`);
+    await ctx.reply(`Не вдалося зробити новий рерайт.\n${error.message}`);
   }
 });
 
 bot.callbackQuery("cancel", async (ctx) => {
   ctx.session.pendingDraft = null;
-  await ctx.answerCallbackQuery({ text: "Черновик удален." });
+  await ctx.answerCallbackQuery({ text: "Черновик видалено." });
   await ctx.editMessageReplyMarkup();
 });
 
@@ -178,11 +178,11 @@ async function resolveSource(input) {
 }
 
 function formatPreview(source, rewritten) {
-  const sourceLabel = source.sourceUrl || "прямой ввод";
+  const sourceLabel = source.sourceUrl || "прямий ввод";
   const excerpt = source.text.slice(0, 700);
 
   return [
-    `Источник: ${sourceLabel}`,
+    `Джерело: ${sourceLabel}`,
     "",
     "Исходник:",
     excerpt + (source.text.length > excerpt.length ? "\n..." : ""),
@@ -194,7 +194,7 @@ function formatPreview(source, rewritten) {
 
 function draftKeyboard() {
   return new InlineKeyboard()
-    .text("Опубликовать", "publish")
-    .text("Повторить", "retry")
-    .text("Отмена", "cancel");
+    .text("Опублікувати", "publish")
+    .text("Повторити", "retry")
+    .text("Відмінити", "cancel");
 }
