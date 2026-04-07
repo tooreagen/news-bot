@@ -37,7 +37,8 @@ const bot = new Bot(botToken);
 bot.use(
   session({
     initial: () => ({
-      pendingDraft: null
+      pendingDraft: null,
+      pendingSource: null
     })
   })
 );
@@ -82,11 +83,33 @@ bot.on("message:text", async (ctx) => {
     return;
   }
 
+  try {
+    const source = await resolveSource(input);
+    ctx.session.pendingDraft = null;
+    ctx.session.pendingSource = source;
+    await ctx.reply("Потрібно згенерувати фото?", {
+      reply_markup: imageDecisionKeyboard()
+    });
+  } catch (error) {
+    await ctx.reply(`Не вдалося опрацювати матеріал.\n${error.message}`);
+  }
+});
+
+bot.callbackQuery(/^image:(yes|no)$/, async (ctx) => {
+  const source = ctx.session.pendingSource;
+  if (!source) {
+    await ctx.answerCallbackQuery({ text: "Матеріал не знайдено." });
+    return;
+  }
+
+  const shouldGenerateImage = ctx.match[1] === "yes";
+  await ctx.answerCallbackQuery();
+  await ctx.editMessageReplyMarkup();
   await ctx.reply("Опрацьовую матеріал...");
 
   try {
-    const source = await resolveSource(input);
-    const draft = await buildDraft(source);
+    const draft = await buildDraft(source, { shouldGenerateImage });
+    ctx.session.pendingSource = null;
     ctx.session.pendingDraft = draft;
     await sendDraftPreview(ctx, draft);
   } catch (error) {
@@ -117,10 +140,15 @@ bot.callbackQuery("retry", async (ctx) => {
   await ctx.answerCallbackQuery({ text: "Створюю новий варіант..." });
 
   try {
-    const nextDraft = await buildDraft({
-      text: draft.originalText,
-      sourceUrl: draft.sourceUrl
-    });
+    const nextDraft = await buildDraft(
+      {
+        text: draft.originalText,
+        sourceUrl: draft.sourceUrl
+      },
+      {
+        shouldGenerateImage: draft.shouldGenerateImage
+      }
+    );
 
     ctx.session.pendingDraft = nextDraft;
     await ctx.editMessageReplyMarkup();
@@ -132,6 +160,7 @@ bot.callbackQuery("retry", async (ctx) => {
 
 bot.callbackQuery("cancel", async (ctx) => {
   ctx.session.pendingDraft = null;
+  ctx.session.pendingSource = null;
   await ctx.answerCallbackQuery({ text: "Чернетку видалено." });
   await ctx.editMessageReplyMarkup();
 });
@@ -155,23 +184,31 @@ async function resolveSource(input) {
   };
 }
 
-async function buildDraft(source) {
+async function buildDraft(source, options = {}) {
+  const shouldGenerateImage = options.shouldGenerateImage ?? true;
   const rewritten = await rewriteNews({
     articleText: source.text,
     sourceUrl: source.sourceUrl
   });
   const formatted = formatChannelPost(rewritten);
-  const imageDraft = await tryGenerateImage({ rewrittenText: formatted });
+  const imageDraft = shouldGenerateImage
+    ? await tryGenerateImage({ rewrittenText: formatted })
+    : null;
 
   return {
     originalText: source.text,
     sourceUrl: source.sourceUrl,
+    shouldGenerateImage,
     rewrittenText: rewritten,
     formattedText: formatted,
     imageBase64: imageDraft?.imageBase64 || null,
     imageMimeType: imageDraft?.mimeType || null,
     imagePrompt: imageDraft?.prompt || null
   };
+}
+
+function imageDecisionKeyboard() {
+  return new InlineKeyboard().text("ТАК", "image:yes").text("НІ", "image:no");
 }
 
 function draftKeyboard() {
